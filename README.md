@@ -30,8 +30,8 @@ pip install -e . pytest
 Configura variabili ambiente:
 
 ```bash
-export TELEGRAM_BOT_TOKEN="<token_botfather>"
-export POLLING_INTERVAL_SECONDS=45
+export TELEGRAM_BOT_TOKEN="8358710457:AAEoPguquKqYizzvPt8FM7fQeVFXQWTp3f4"
+export POLLING_INTERVAL_SECONDS=5
 # opzionale
 export VINTED_BASE_URL="https://www.vinted.it"
 export DATA_FILE="data/user_preferences.json"
