@@ -1,0 +1,13 @@
+[project]
+name = "vinted-telegram-bot"
+version = "0.1.0"
+description = "Bot Telegram che notifica nuovi articoli Vinted filtrati per marca e prezzo massimo"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "python-telegram-bot>=21.0",
+  "httpx>=0.27.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
