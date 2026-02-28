@@ -11,8 +11,8 @@ Questo progetto crea un bot Telegram che guida l'utente nel setup e poi invia no
 
 1. L'utente avvia il bot con `/start`.
 2. Sceglie la marca tra quelle proposte.
-3. Sceglie il genere (Uomo o Donna).
-4. Sceglie la tipologia di capo.
+3. Sceglie il genere (Uomo o Donna) tra le opzioni disponibili su Vinted.
+4. Sceglie la tipologia di capo proposta dal catalogo Vinted per quel genere.
 5. Inserisce il prezzo massimo.
 6. Il bot salva la configurazione e controlla periodicamente Vinted.
 7. Quando trova nuovi articoli coerenti, invia un messaggio su Telegram con **foto, titolo, prezzo e link diretto**.
@@ -49,6 +49,7 @@ PYTHONPATH=src python -m vinted_bot.main
 
 ## Note tecniche
 
+- Il bot carica dinamicamente il catalogo Vinted per mostrare genere e categorie più allineate possibili al filtro reale del sito.
 - La ricerca imposta i filtri Vinted con **marca**, **genere**, **categoria capo**, **prezzo massimo** e forza sempre **Ordina per -> Dal più recente**.
 - Il bot prova a risolvere automaticamente `brand_id` e `catalog_id` dagli endpoint Vinted per applicare i filtri in modo più fedele.
 - Le preferenze utente sono salvate in un file JSON locale.

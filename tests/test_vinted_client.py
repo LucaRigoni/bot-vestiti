@@ -54,3 +54,32 @@ def test_extract_catalog_id_for_gender_and_category() -> None:
     catalog_id = VintedClient._extract_catalog_id(payload, gender="Uomo", category="Pantaloncini")
 
     assert catalog_id == 71
+
+
+
+def test_extract_catalog_options_maps_genders_to_categories() -> None:
+    payload = {
+        "catalogs": [
+            {
+                "title": "Uomo",
+                "catalogs": [
+                    {"title": "Pantaloni", "catalogs": []},
+                    {"title": "Pantaloncini", "catalogs": []},
+                ],
+            },
+            {
+                "title": "Donna",
+                "catalogs": [
+                    {"title": "Vestiti", "catalogs": []},
+                ],
+            },
+        ]
+    }
+
+    options = VintedClient._extract_catalog_options(payload)
+
+    assert "Uomo" in options
+    assert "Donna" in options
+    assert "Pantaloni" in options["Uomo"]
+    assert "Pantaloncini" in options["Uomo"]
+    assert "Vestiti" in options["Donna"]

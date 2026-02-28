@@ -32,9 +32,13 @@ class BotRuntime:
     preferences: dict[int, UserPreference]
 
 
+def _keyboard_from_options(options: list[str]) -> list[list[KeyboardButton]]:
+    return [[KeyboardButton(option)] for option in options]
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
-    keyboard = [[KeyboardButton(b)] for b in BRANDS]
+    keyboard = _keyboard_from_options(BRANDS)
     await update.message.reply_text(
         "Ciao! Ti aiuto a trovare articoli per il reselling.\n"
         "Setup filtri (1/4): scegli la marca che vuoi monitorare:",
@@ -44,13 +48,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def select_brand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    runtime: BotRuntime = context.application.bot_data["runtime"]
     brand = (update.message.text or "").strip()
     if brand not in BRANDS:
         await update.message.reply_text("Seleziona una marca dalla tastiera proposta.")
         return CHOOSING_BRAND
 
+    catalog_options = await runtime.client.get_catalog_options()
+    if not catalog_options:
+        catalog_options = CATEGORY_OPTIONS
+
+    genders = sorted([g for g in catalog_options.keys() if g in GENDERS], key=GENDERS.index)
+    if not genders:
+        genders = GENDERS
+
     context.user_data["brand"] = brand
-    keyboard = [[KeyboardButton(g)] for g in GENDERS]
+    context.user_data["catalog_options"] = catalog_options
+    keyboard = _keyboard_from_options(genders)
     await update.message.reply_text(
         f"Perfetto, marca: {brand}. Setup filtri (2/4): scegli il genere:",
         reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True),
@@ -60,12 +74,17 @@ async def select_brand(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
 async def select_gender(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     gender = (update.message.text or "").strip()
-    if gender not in GENDERS:
+    catalog_options = context.user_data.get("catalog_options", CATEGORY_OPTIONS)
+    available_genders = [g for g in catalog_options.keys() if g in GENDERS] or GENDERS
+
+    if gender not in available_genders:
         await update.message.reply_text("Seleziona Uomo o Donna dalla tastiera.")
         return CHOOSING_GENDER
 
+    categories = catalog_options.get(gender) or CATEGORY_OPTIONS.get(gender, [])
     context.user_data["gender"] = gender
-    keyboard = [[KeyboardButton(c)] for c in CATEGORY_OPTIONS[gender]]
+    context.user_data["categories"] = categories
+    keyboard = _keyboard_from_options(categories)
     await update.message.reply_text(
         f"Genere: {gender}. Setup filtri (3/4): scegli la tipologia di capo:",
         reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True),
@@ -74,10 +93,9 @@ async def select_gender(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 async def select_category(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    gender = context.user_data.get("gender")
     category = (update.message.text or "").strip()
-    valid = CATEGORY_OPTIONS.get(gender, [])
-    if category not in valid:
+    valid_categories = context.user_data.get("categories", [])
+    if category not in valid_categories:
         await update.message.reply_text("Scegli una categoria tra quelle proposte dalla tastiera.")
         return CHOOSING_CATEGORY
 

@@ -10,6 +10,7 @@ class VintedClient:
         self.base_url = base_url.rstrip("/")
         self._brand_cache: dict[str, int | None] = {}
         self._catalog_cache: dict[tuple[str, str], int | None] = {}
+        self._catalog_options_cache: dict[str, list[str]] | None = None
 
     @staticmethod
     def _headers() -> dict[str, str]:
@@ -78,6 +79,42 @@ class VintedClient:
                 VintedClient._walk_catalog_tree(children, output)
 
     @staticmethod
+    def _extract_catalog_options(payload: Mapping[str, object]) -> dict[str, list[str]]:
+        catalogs = payload.get("catalogs")
+        if not isinstance(catalogs, list):
+            return {}
+
+        options: dict[str, list[str]] = {}
+        for entry in catalogs:
+            if not isinstance(entry, Mapping):
+                continue
+            gender = str(entry.get("title") or entry.get("name") or "").strip()
+            if not gender:
+                continue
+            children = entry.get("catalogs")
+            if not isinstance(children, list):
+                continue
+
+            all_nodes: list[Mapping[str, object]] = []
+            VintedClient._walk_catalog_tree(children, all_nodes)
+            names: list[str] = []
+            seen: set[str] = set()
+            for node in all_nodes:
+                title = str(node.get("title") or node.get("name") or "").strip()
+                if not title:
+                    continue
+                folded = title.casefold()
+                if folded in seen:
+                    continue
+                seen.add(folded)
+                names.append(title)
+
+            if names:
+                options[gender] = names
+
+        return options
+
+    @staticmethod
     def _extract_catalog_id(payload: Mapping[str, object], gender: str, category: str) -> int | None:
         catalogs = payload.get("catalogs")
         if not isinstance(catalogs, list):
@@ -113,6 +150,34 @@ class VintedClient:
 
         return None
 
+    async def _fetch_catalog_payload(self) -> Mapping[str, object] | None:
+        url = f"{self.base_url}/api/v2/catalogs"
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.get(url, headers=self._headers())
+                response.raise_for_status()
+                payload = response.json()
+                if isinstance(payload, Mapping):
+                    return payload
+                return None
+        except Exception:  # noqa: BLE001
+            return None
+
+    async def get_catalog_options(self) -> dict[str, list[str]]:
+        if self._catalog_options_cache is not None:
+            return self._catalog_options_cache
+
+        payload = await self._fetch_catalog_payload()
+        if payload is None:
+            self._catalog_options_cache = {}
+            return {}
+
+        options = self._extract_catalog_options(payload)
+        self._catalog_options_cache = options
+        return options
+
     async def resolve_brand_id(self, brand: str) -> int | None:
         key = brand.casefold().strip()
         if key in self._brand_cache:
@@ -141,15 +206,8 @@ class VintedClient:
         if key in self._catalog_cache:
             return self._catalog_cache[key]
 
-        url = f"{self.base_url}/api/v2/catalogs"
-        try:
-            import httpx
-
-            async with httpx.AsyncClient(timeout=15) as client:
-                response = await client.get(url, headers=self._headers())
-                response.raise_for_status()
-                payload = response.json()
-        except Exception:  # noqa: BLE001
+        payload = await self._fetch_catalog_payload()
+        if payload is None:
             self._catalog_cache[key] = None
             return None
 
